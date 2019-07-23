@@ -7,7 +7,9 @@ class CPU:
 
     def __init__(self):
         """Construct a new CPU."""
-        pass
+        self.pc = 0
+        self.ram = [0b00000000] * 8
+        self.reg = [0] * 8
 
     def load(self):
         """Load a program into memory."""
@@ -29,6 +31,10 @@ class CPU:
         for instruction in program:
             self.ram[address] = instruction
             address += 1
+
+
+    def h(self):
+        return sys.exit()
 
 
     def alu(self, op, reg_a, reg_b):
@@ -60,6 +66,53 @@ class CPU:
 
         print()
 
+    def ram_read(self, address):
+        return self.ram[address]
+
+    def ram_write(self, address, value):
+        self.ram[address] = value
+
     def run(self):
         """Run the CPU."""
-        pass
+
+        ops = {
+            0b01000111: self.PRN,
+            0b10000010: self.LDI,
+        }
+
+        while self.pc < 8:
+            # self.trace()
+            instructional_register = self.ram_read(self.pc)
+
+            if (instructional_register == 0b00000001):
+                break
+            # print('instructional_register', instructional_register, self.pc)
+            ops[instructional_register]()
+
+        return self.h()
+
+
+    def LDI(self):
+        '''Set the value of a register to an integer.'''
+
+        # Get Operands
+        operand_a = self.ram_read(self.pc + 1)
+        operand_b = self.ram_read(self.pc + 2)
+        # Set Requested Register to Value
+        self.reg[operand_a] = operand_b
+        # Increment PC
+        self.pc += 3
+
+
+    def PRN(self):
+        '''Print numeric value stored in the given register.'''
+
+        # Get Operand
+        register_address = self.ram_read(self.pc + 1)
+        # Get Register
+        register_value = self.reg[register_address]
+        # Print
+        print(register_value)
+        # Increment PC
+        self.pc += 2
+
