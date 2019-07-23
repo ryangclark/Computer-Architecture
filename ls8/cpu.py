@@ -8,7 +8,7 @@ class CPU:
     def __init__(self):
         """Construct a new CPU."""
         self.pc = 0
-        self.ram = [0b00000000] * 8
+        self.ram = [0b00000000] * 32
         self.reg = [0] * 8
 
     def load(self):
@@ -16,21 +16,16 @@ class CPU:
 
         address = 0
 
-        # For now, we've just hardcoded a program:
+        with open(sys.argv[1]) as f:
+            line = f.readline()
+            while line and address < 32:
+                if (line[0] == '0' or line[0] == '1'):
+                    self.ram[address] = int(line[0:8], base=2)
+                    address += 1
 
-        program = [
-            # From print8.ls8
-            0b10000010, # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111, # PRN R0
-            0b00000000,
-            0b00000001, # HLT
-        ]
+                line = f.readline()
 
-        for instruction in program:
-            self.ram[address] = instruction
-            address += 1
+        # print('self.ram', self.ram)
 
 
     def h(self):
@@ -78,9 +73,10 @@ class CPU:
         ops = {
             0b01000111: self.PRN,
             0b10000010: self.LDI,
+            0b10100010: self.MUL,
         }
 
-        while self.pc < 8:
+        while self.pc < 32:
             # self.trace()
             instructional_register = self.ram_read(self.pc)
 
@@ -102,6 +98,20 @@ class CPU:
         self.reg[operand_a] = operand_b
         # Increment PC
         self.pc += 3
+
+
+    def MUL(self):
+        ''' Multiply the values in two registers together 
+            and store the result in registerA.'''
+
+        # Get Operands
+        operand_a = self.ram_read(self.pc + 1)
+        operand_b = self.ram_read(self.pc + 2)
+        # Multiply and Set Product to RegisterA
+        self.reg[operand_a] *= self.reg[operand_b]
+        # Increment PC
+        self.pc += 3
+        # print(self.pc)
 
 
     def PRN(self):
