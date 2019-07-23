@@ -38,6 +38,8 @@ class CPU:
         if op == "ADD":
             self.reg[reg_a] += self.reg[reg_b]
         #elif op == "SUB": etc
+        elif op == "MUL":
+            self.reg[reg_a] *= self.reg[reg_b]
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -107,8 +109,8 @@ class CPU:
         # Get Operands
         operand_a = self.ram_read(self.pc + 1)
         operand_b = self.ram_read(self.pc + 2)
-        # Multiply and Set Product to RegisterA
-        self.reg[operand_a] *= self.reg[operand_b]
+        # Call `alu()` function
+        self.alu('MUL', operand_a, operand_b)
         # Increment PC
         self.pc += 3
         # print(self.pc)
