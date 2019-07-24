@@ -7,6 +7,18 @@ class CPU:
 
     def __init__(self):
         """Construct a new CPU."""
+        self.ops = {
+            0b00000000: self.NOP,  #   0
+            0b00000001: self.h,    #   1
+            0b00010001: self.RET,  #  17
+            0b01000101: self.PUSH, #  69
+            0b01000110: self.POP,  #  70
+            0b01000111: self.PRN,  #  71
+            0b01010000: self.CALL, #  80
+            0b10000010: self.LDI,  # 130
+            0b10100000: self.ADD,  # 160
+            0b10100010: self.MUL,  # 162
+        }
         self.pc = 0
         self.ram = [0b00000000] * 256
         self.reg = [0] * 8
@@ -79,29 +91,53 @@ class CPU:
     def run(self):
         """Run the CPU."""
 
-        ops = {
-            0b00000000: self.NOP,
-            0b00000001: self.h,
-            0b01000111: self.PRN,
-            0b10000010: self.LDI,
-            0b10100010: self.MUL,
-            0b01000101: self.PUSH,
-            0b01000110: self.POP,
-        }
-
-        while self.pc < 32:
+        while self.pc < 256:
             # self.trace()
             instructional_register = self.ram_read(self.pc)
 
             try:
-                ops[instructional_register]()
+                self.ops[instructional_register]()
             except KeyError as e:
-                self.h(f'Command not recognized: {e}')
+                self.h(f'Error in cpu.run(): Command not recognized: {e}')
             
-
-        print('Ran through all 32!')
+        print('Ran through all 256!')
         self.trace()
         return self.h()
+
+    def ADD(self):
+        ''' Add the value in two registers and 
+            store the result in registerA.'''
+
+        # Get Operands
+        operand_a = self.ram_read(self.pc + 1)
+        operand_b = self.ram_read(self.pc + 2)
+        # Call `alu()` function
+        self.alu('ADD', operand_a, operand_b)
+        # Increment PC
+        self.pc += 3
+        
+
+    def CALL(self):
+        ''' Calls a subroutine (function) 
+            at the address stored in the register.'''
+
+        # Decrement the `SP`
+        self.reg[7] -= 1
+        # Push Next Instruction Address to Stack
+        self.ram_write(self.reg[7], self.pc + 2)
+
+        # Get Operand
+        register_address = self.ram_read(self.pc + 1)
+        # Get Register Value
+        register_value = self.reg[register_address]
+        # Set PC to Register Value
+        self.pc = register_value
+
+        try:
+            instructional_register = self.ram_read(self.pc)
+            self.ops[instructional_register]()
+        except KeyError as e:
+            self.h(f'ERROR in cpu.CALL(): Command not recognized: {e}')
 
 
     def LDI(self):
@@ -127,7 +163,6 @@ class CPU:
         self.alu('MUL', operand_a, operand_b)
         # Increment PC
         self.pc += 3
-        # print(self.pc)
 
 
     def NOP(self):
@@ -175,3 +210,16 @@ class CPU:
         self.ram_write(self.reg[7], register_value)
         # Increment PC
         self.pc += 2
+
+
+    def RET(self):
+        '''Return from subroutine.'''
+
+        # Get Value in RAM at SP Address
+        stack_value = self.ram_read(self.reg[7])
+        # Increment SP
+        self.reg[7] += 1
+
+        # Store Address in PC
+        self.pc = stack_value
+
