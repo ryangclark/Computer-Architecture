@@ -7,6 +7,7 @@ class CPU:
 
     def __init__(self):
         """Construct a new CPU."""
+        self.fl = 0b00000000 # Flags
         self.ops = {
             0b00000000: self.NOP,  #   0
             0b00000001: self.h,    #   1
@@ -15,13 +16,17 @@ class CPU:
             0b01000110: self.POP,  #  70
             0b01000111: self.PRN,  #  71
             0b01010000: self.CALL, #  80
+            0b01010100: self.JMP,  #  84
+            0b01010101: self.JEQ,  #  85
+            0b01010110: self.JNE,  #  86
             0b10000010: self.LDI,  # 130
             0b10100000: self.ADD,  # 160
             0b10100010: self.MUL,  # 162
+            0b10100111: self.CMP,  # 167
         }
-        self.pc = 0
-        self.ram = [0b00000000] * 256
-        self.reg = [0] * 8
+        self.pc = 0 # Program Counter
+        self.ram = [0b00000000] * 256 # Memory
+        self.reg = [0b00000000] * 8 # Registers
         self.reg[7] = 0xF4 # Initialize Stack Pointer
 
     def load(self):
@@ -31,7 +36,7 @@ class CPU:
 
         with open(sys.argv[1]) as f:
             line = f.readline()
-            while line and address < 32:
+            while line and address < 256:
                 if (line[0] == '0' or line[0] == '1'):
                     self.ram[address] = int(line[0:8], base=2)
                     address += 1
@@ -50,13 +55,24 @@ class CPU:
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
 
+
         if op == "ADD":
             self.reg[reg_a] += self.reg[reg_b]
-        #elif op == "SUB": etc
+        elif op == "CMP":
+            result = self.reg[reg_a] - self.reg[reg_b]
+
+            # `FL` bits: `00000LGE`
+            if result == 0: # reg_a == reg_b
+                self.fl = 0b00000001
+            elif result < 0: # reg_a < reg_b
+                self.fl = 0b00000100
+            else: # reg_a > reg_b
+                self.fl = 0b00000010
         elif op == "MUL":
             self.reg[reg_a] *= self.reg[reg_b]
+        #elif op == "SUB": etc
         else:
-            raise Exception("Unsupported ALU operation")
+            raise Exception(f"Unsupported ALU operation: {op}")
 
 
     def trace(self):
@@ -65,9 +81,9 @@ class CPU:
         from run() if you need help debugging.
         """
 
-        print(f"TRACE: %02X | %02X %02X %02X |" % (
+        print(f"TRACE: %02X %02X | %02X %02X %02X |" % (
             self.pc,
-            #self.fl,
+            self.fl,
             #self.ie,
             self.ram_read(self.pc),
             self.ram_read(self.pc + 1),
@@ -101,7 +117,6 @@ class CPU:
                 self.h(f'Error in cpu.run(): Command not recognized: {e}')
             
         print('Ran through all 256!')
-        self.trace()
         return self.h()
 
     def ADD(self):
@@ -115,7 +130,7 @@ class CPU:
         self.alu('ADD', operand_a, operand_b)
         # Increment PC
         self.pc += 3
-        
+
 
     def CALL(self):
         ''' Calls a subroutine (function) 
@@ -138,6 +153,53 @@ class CPU:
             self.ops[instructional_register]()
         except KeyError as e:
             self.h(f'ERROR in cpu.CALL(): Command not recognized: {e}')
+
+
+    def CMP(self):
+        '''Compare the values in two registers.'''
+        # print('CMP')
+        # self.trace()
+
+        # Get Operands
+        operand_a = self.ram_read(self.pc + 1)
+        operand_b = self.ram_read(self.pc + 2)
+        # Call `alu()` function
+        self.alu('CMP', operand_a, operand_b)
+        # Increment PC
+        self.pc += 3
+
+
+    def JEQ(self):
+        ''' If `equal` flag is set (true), jump to the 
+            address stored in the given register.'''
+        
+        if self.fl == 0b00000001:
+            self.JMP()
+        else:
+            # Increment PC
+            self.pc += 2
+
+
+    def JMP(self):
+        '''Jump to the address stored in the given register.'''
+
+        # Get Operand
+        register_address = self.ram_read(self.pc + 1)
+        # Get Register Value
+        register_value = self.reg[register_address]
+        # Set PC to Register Value
+        self.pc = register_value
+
+
+    def JNE(self):
+        ''' If `E` flag is clear (false, 0), jump to the address
+            stored in the given register.'''
+        
+        if self.fl != 1:
+            self.JMP()
+        else:
+            # Increment PC
+            self.pc += 2
 
 
     def LDI(self):
@@ -166,6 +228,8 @@ class CPU:
 
 
     def NOP(self):
+        # Increment PC
+        self.pc += 1
         return
 
 
